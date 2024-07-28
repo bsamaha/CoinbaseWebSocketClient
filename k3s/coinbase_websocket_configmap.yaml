@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coinbase-config
+data:
+  COINBASE_WEBSOCKET_URL: "wss://advanced-trade-ws.coinbase.com"
+  COINBASE_PRODUCT_IDS: "BTC-USD,ETH-USD"
+  COINBASE_CHANNEL: "candles"
+  WEBSOCKET_BUFFER_SIZE: "32768"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-broker-0.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-1.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-2.kafka-broker-headless.kafka.svc.cluster.local:9092"
+  KAFKA_TOPIC: "coinbase-data"
+  KAFKA_USERNAME: "user1"

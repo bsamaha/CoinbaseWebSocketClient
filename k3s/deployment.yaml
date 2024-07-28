@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coinbase-websocket-client
+  labels:
+    app: coinbase-websocket-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coinbase-websocket-client
+  template:
+    metadata:
+      labels:
+        app: coinbase-websocket-client
+    spec:
+      containers:
+      - name: coinbase-websocket-client
+        image: your-registry/coinbase-websocket-client:v1
+        envFrom:
+        - secretRef:
+            name: sealed-coinbase-secrets
+        - configMapRef:
+            name: coinbase-config

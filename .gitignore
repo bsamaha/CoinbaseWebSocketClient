@@ -1,0 +1,68 @@
+# .NET build output
+**/bin/
+**/obj/
+# User-specific files
+*.user
+*.suo
+*.userprefs
+
+# VS Code directory
+.vscode/
+
+# Visual Studio directory
+.vs/
+
+# Rider directory
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Credentials directory
+**/creds/
+
+# Configuration files
+*appsettings.json
+
+# Compiled DLLs
+*.dll
+
+# Executables
+*.exe
+
+# Debug files
+*.pdb
+
+# Runtime configuration
+*.runtimeconfig.json
+
+# NuGet package files
+*.nupkg
+*.snupkg
+
+# Test Results
+TestResults/
+
+# Coverage results
+coverage.json
+coverage.cobertura.xml
+
+# Solution file
+*.sln
+
+# Project files
+*.csproj
+
+
+
+# K3s configuration
+k3s/coinbase_websocket_secret.yaml
+
+# Keep specific files
+!k3s/appsettings.json
+!k3s/coinbase_websocket_configmap.yaml
+!k3s/coinbase_websocket_install.sh
+!k3s/deployment.yaml
