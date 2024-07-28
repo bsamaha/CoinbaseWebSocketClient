@@ -29,28 +29,41 @@ namespace CoinbaseWebSocketClient.Services
             };
             _producer = new ProducerBuilder<Null, string>(producerConfig).Build();
             _isInitialized = true;
-            _logger.LogInformation("Kafka producer initialized successfully.");
+            _logger?.LogInformation("Kafka producer initialized successfully.");
         }
 
-        public Task ProduceMessage(string message)
+        public async Task ProduceMessage(string message)
         {
-            if (!_isInitialized)
-            {
-                _logger.LogWarning("Attempted to produce message, but Kafka producer is not initialized.");
-                return Task.CompletedTask;
-            }
-
             try
             {
-                var deliveryResult = _producer.ProduceAsync(_topic, new Message<Null, string> { Value = message });
-                _logger?.LogInformation($"Delivered message to {deliveryResult.Result.TopicPartitionOffset}");
-            }
-            catch (ProduceException<Null, string> e)
-            {
-                _logger?.LogError($"Delivery failed: {e.Error.Reason}");
-            }
+                _logger?.LogInformation("Attempting to produce message to Kafka");
+                if (!_isInitialized)
+                {
+                    _logger?.LogWarning("Attempted to produce message, but Kafka producer is not initialized.");
+                    return;
+                }
 
-            return Task.CompletedTask;
+                try
+                {
+                    if (_producer == null)
+                    {
+                        throw new InvalidOperationException("Kafka producer is not initialized.");
+                    }
+                    var deliveryResult = await _producer.ProduceAsync(_topic, new Message<Null, string> { Value = message });
+                    _logger?.LogInformation($"Delivered message to {deliveryResult.TopicPartitionOffset}");
+                    _logger?.LogInformation("Message successfully produced to Kafka");
+                }
+                catch (ProduceException<Null, string> e)
+                {
+                    _logger?.LogError($"Delivery failed: {e.Error.Reason}");
+                    throw;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error producing message to Kafka");
+                throw;
+            }
         }
 
         public void Dispose()
