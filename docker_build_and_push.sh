@@ -55,10 +55,14 @@ sed -i '/VERSION=/d' "$DOCKERFILE_PATH"
 # Add the new ENV VERSION line
 echo "ENV VERSION=$new_version" >> "$DOCKERFILE_PATH"
 
-# Build Docker image
+# Build Docker image with specific version tag
 docker build -t "${IMAGE_NAME}:${new_version}" .
 
-# Push to DockerHub
-docker push "${IMAGE_NAME}:${new_version}"
+# Tag the image as latest
+docker tag "${IMAGE_NAME}:${new_version}" "${IMAGE_NAME}:latest"
 
-echo "Successfully updated version to $new_version and pushed to DockerHub"
+# Push both version-specific and latest tags to DockerHub
+docker push "${IMAGE_NAME}:${new_version}"
+docker push "${IMAGE_NAME}:latest"
+
+echo "Successfully updated version to $new_version, tagged as latest, and pushed both to DockerHub"
