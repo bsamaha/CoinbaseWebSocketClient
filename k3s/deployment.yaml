@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: coinbase-websocket-client
-        image: bsamaha/coinbase-websocket-client:v1
+        image: bsamaha/coinbase-websocket-client:latest
+        imagePullPolicy: Always
         envFrom:
         - secretRef:
             name: coinbase-secrets
