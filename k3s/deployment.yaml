@@ -19,6 +19,6 @@ spec:
         image: bsamaha/coinbase-websocket-client:v1
         envFrom:
         - secretRef:
-            name: sealed-coinbase-secrets
+            name: coinbase-secrets
         - configMapRef:
             name: coinbase-config

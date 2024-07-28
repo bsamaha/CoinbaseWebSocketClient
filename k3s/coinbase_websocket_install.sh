@@ -8,7 +8,6 @@ COINBASE_PRIVATE_KEY="your-private-key"  # Replace with your actual private key
 # Get Kafka password
 KAFKA_PASSWORD=$(kubectl get secret kafka-user-passwords --namespace kafka -o jsonpath='{.data.client-passwords}' | base64 -d | cut -d , -f 1)
 
-# Create or update the secret
 echo "Creating/updating Coinbase secrets..."
 kubectl create secret generic coinbase-secrets \
   --namespace $NAMESPACE \
