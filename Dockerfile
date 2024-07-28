@@ -1,11 +1,21 @@
+# Build stage
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY ["CoinbaseWebSocketClient.csproj", "./"]
+
+# Copy csproj and restore dependencies
+COPY ["src/CoinbaseWebSocketClient/CoinbaseWebSocketClient.csproj", "./"]
 RUN dotnet restore "CoinbaseWebSocketClient.csproj"
-COPY . .
+
+# Copy the rest of the source code
+COPY src/CoinbaseWebSocketClient .
+
+# Build and publish the application
 RUN dotnet publish "CoinbaseWebSocketClient.csproj" -c Release -o /app/publish
 
+# Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-CMD ["dotnet", "CoinbaseWebSocketClient.dll"]
+
+# Set the entry point
+ENTRYPOINT ["dotnet", "CoinbaseWebSocketClient.dll"]
