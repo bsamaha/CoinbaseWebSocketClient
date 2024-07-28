@@ -3,11 +3,11 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy csproj and restore dependencies
-COPY ["src/CoinbaseWebSocketClient/CoinbaseWebSocketClient.csproj", "./"]
+COPY ["CoinbaseWebSocketClient/CoinbaseWebSocketClient.csproj", "./"]
 RUN dotnet restore "CoinbaseWebSocketClient.csproj"
 
 # Copy the rest of the source code
-COPY src/CoinbaseWebSocketClient .
+COPY CoinbaseWebSocketClient .
 
 # Build and publish the application
 RUN dotnet publish "CoinbaseWebSocketClient.csproj" -c Release -o /app/publish
