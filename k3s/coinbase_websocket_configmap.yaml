@@ -10,3 +10,6 @@ data:
   KAFKA_BOOTSTRAP_SERVERS: "kafka-broker-0.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-1.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-2.kafka-broker-headless.kafka.svc.cluster.local:9092"
   KAFKA_TOPIC: "coinbase-data"
   KAFKA_USERNAME: "user1"
+  KAFKA_SECURITY_PROTOCOL: "SASL_PLAINTEXT"
+  KAFKA_SASL_MECHANISM: "SCRAM-SHA-256"
+  KAFKA_DEBUG: "broker,topic,msg"

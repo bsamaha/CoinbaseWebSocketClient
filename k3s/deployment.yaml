@@ -19,7 +19,7 @@ spec:
         image: bsamaha/coinbase-websocket-client:latest
         imagePullPolicy: Always
         envFrom:
-        - secretRef:
-            name: coinbase-secrets
         - configMapRef:
             name: coinbase-config
+        - secretRef:
+            name: coinbase-secrets

@@ -44,7 +44,10 @@ namespace CoinbaseWebSocketClient
                     Channel = config.Channel,
                     WebSocketBufferSize = config.WebSocketBufferSize,
                     KafkaBootstrapServers = config.KafkaBootstrapServers,
-                    KafkaTopic = config.KafkaTopic
+                    KafkaTopic = config.KafkaTopic,
+                    KafkaUsername = config.KafkaUsername,
+                    KafkaPassword = config.KafkaPassword,
+                    KafkaDebug = config.KafkaDebug
                 };
             });
 

@@ -58,11 +58,9 @@ coverage.cobertura.xml
 
 
 
-# K3s configuration
-k3s/coinbase_websocket_secret.yaml
-
 # Keep specific files
 !k3s/appsettings.json
 !k3s/coinbase_websocket_configmap.yaml
 !k3s/coinbase_websocket_install.sh
 !k3s/deployment.yaml
+!k3s/coinbase_websocket_secret.yaml

@@ -16,32 +16,34 @@ namespace CoinbaseWebSocketClient.Services
         private readonly IJwtGenerator _jwtGenerator;
         private readonly ILoggerFactory _loggerFactory;
         private readonly List<WebSocketHandler> _handlers = new List<WebSocketHandler>();
+        private readonly IWebSocketClient _webSocketClient;
 
         public WebSocketManager(
             ILogger<WebSocketManager> logger,
             IMessageProcessor messageProcessor,
             IConfig config,
             IJwtGenerator jwtGenerator,
-            ILoggerFactory loggerFactory)
+            ILoggerFactory loggerFactory,
+            IWebSocketClient webSocketClient)
         {
             _logger = logger;
             _messageProcessor = messageProcessor;
             _config = config;
             _jwtGenerator = jwtGenerator;
             _loggerFactory = loggerFactory;
+            _webSocketClient = webSocketClient;
         }
 
         public async Task InitializeConnections()
         {
             foreach (var productId in _config.ProductIds)
             {
-                var webSocket = new WebSocketClient(); // Create a new WebSocketClient for each product
                 var handler = new WebSocketHandler(
                     _loggerFactory.CreateLogger<WebSocketHandler>(),
                     _messageProcessor,
                     _config,
                     _jwtGenerator,
-                    webSocket
+                    _webSocketClient
                 );
                 _handlers.Add(handler);
                 await handler.ConnectAndSubscribe(productId);

@@ -4,13 +4,16 @@ namespace CoinbaseWebSocketClient.Interfaces
 {
     public interface IConfig
     {
-        string ApiKey { get; }
-        string PrivateKey { get; }
-        string WebSocketUrl { get; }
-        List<string> ProductIds { get; }
-        string Channel { get; }
-        int WebSocketBufferSize { get; }
-        string KafkaBootstrapServers { get; }
-        string KafkaTopic { get; }
+        string ApiKey { get; set; }
+        string PrivateKey { get; set; }
+        string WebSocketUrl { get; set; }
+        List<string> ProductIds { get; set; }
+        string Channel { get; set; }
+        int WebSocketBufferSize { get; set; }
+        string KafkaBootstrapServers { get; set; }
+        string KafkaTopic { get; set; }
+        string KafkaUsername { get; set; }
+        string KafkaPassword { get; set; }
+        string KafkaDebug { get; set; }
     }
 }

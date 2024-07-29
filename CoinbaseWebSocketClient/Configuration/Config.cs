@@ -17,5 +17,6 @@ namespace CoinbaseWebSocketClient.Configuration
         public string KafkaTopic { get; set; } = Environment.GetEnvironmentVariable("KAFKA_TOPIC") ?? "";
         public string KafkaUsername { get; set; } = Environment.GetEnvironmentVariable("KAFKA_USERNAME") ?? "";
         public string KafkaPassword { get; set; } = Environment.GetEnvironmentVariable("KAFKA_PASSWORD") ?? "";
+        public string KafkaDebug { get; set; } = Environment.GetEnvironmentVariable("KAFKA_DEBUG") ?? "";
     }
 }

@@ -2,29 +2,43 @@
 
 # Set variables
 NAMESPACE="default"  # Change this if you're using a different namespace
-COINBASE_API_KEY="your-api-key"  # Replace with your actual API key
-COINBASE_PRIVATE_KEY="your-private-key"  # Replace with your actual private key
 IMAGE_NAME="bsamaha/coinbase-websocket-client"
 
 # Get Kafka password
 KAFKA_PASSWORD=$(kubectl get secret kafka-user-passwords --namespace kafka -o jsonpath='{.data.client-passwords}' | base64 -d | cut -d , -f 1)
 
-echo "Creating/updating Coinbase secrets..."
-kubectl create secret generic coinbase-secrets \
+# Prompt for Coinbase API key and private key
+read -p "Enter Coinbase API key (leave blank to use value from secret file): " COINBASE_API_KEY
+read -p "Enter Coinbase private key (leave blank to use value from secret file): " COINBASE_PRIVATE_KEY
+
+# Apply the initial secret
+echo "Applying initial Coinbase secrets..."
+kubectl apply -f k3s/coinbase_websocket_secret.yaml
+
+# Update the secrets
+echo "Updating Coinbase secrets..."
+if [ -n "$COINBASE_API_KEY" ]; then
+    kubectl patch secret coinbase-secrets \
+      --namespace $NAMESPACE \
+      --type='json' \
+      -p='[{"op": "replace", "path": "/data/COINBASE_API_KEY", "value":"'$(echo -n "$COINBASE_API_KEY" | base64)'"}]'
+fi
+
+if [ -n "$COINBASE_PRIVATE_KEY" ]; then
+    kubectl patch secret coinbase-secrets \
+      --namespace $NAMESPACE \
+      --type='json' \
+      -p='[{"op": "replace", "path": "/data/COINBASE_PRIVATE_KEY", "value":"'$(echo -n "$COINBASE_PRIVATE_KEY" | base64)'"}]'
+fi
+
+kubectl patch secret coinbase-secrets \
   --namespace $NAMESPACE \
-  --from-literal=COINBASE_API_KEY=$COINBASE_API_KEY \
-  --from-literal=COINBASE_PRIVATE_KEY=$COINBASE_PRIVATE_KEY \
-  --from-literal=KAFKA_PASSWORD=$KAFKA_PASSWORD \
-  --dry-run=client -o yaml | kubectl apply -f -
+  --type='json' \
+  -p='[{"op": "replace", "path": "/data/KAFKA_PASSWORD", "value":"'$(echo -n "$KAFKA_PASSWORD" | base64)'"}]'
 
 # Apply ConfigMap
 echo "Applying Coinbase ConfigMap..."
 kubectl apply -f k3s/coinbase_websocket_configmap.yaml
-
-# Build and push the latest Docker image
-echo "Building and pushing the latest Docker image..."
-docker build -t $IMAGE_NAME:latest .
-docker push $IMAGE_NAME:latest
 
 # Apply Deployment
 echo "Applying Coinbase Deployment..."
