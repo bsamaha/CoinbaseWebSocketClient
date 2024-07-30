@@ -54,6 +54,7 @@ namespace CoinbaseWebSocketClient
             services.AddSingleton<IJwtGenerator, JwtGenerator>();
             services.AddSingleton<IKafkaProducer, KafkaProducer>();
             services.AddSingleton<IMessageProcessor, MessageProcessor>();
+            services.AddSingleton<IWebSocketClient, WebSocketClient>(); // Added this line
             services.AddSingleton<WebSocketManager>();
         }
     }

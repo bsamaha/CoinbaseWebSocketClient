@@ -24,14 +24,53 @@ namespace CoinbaseWebSocketClient.Services
 
         public async Task ProcessReceivedMessage(string receivedMessage)
         {
-            _logger.LogInformation($"Received message: {receivedMessage}");
+            _logger.LogInformation("Received message: {Message}", receivedMessage);
+
             try
             {
-                await _kafkaProducer.ProduceMessage(receivedMessage);
+                var jsonDocument = JsonDocument.Parse(receivedMessage);
+                var root = jsonDocument.RootElement;
+
+                if (root.TryGetProperty("type", out var typeProperty) && typeProperty.GetString() == "ticker")
+                {
+                    _logger.LogInformation("Processing ticker message");
+                    await _kafkaProducer.ProduceMessage(receivedMessage);
+                    _logger.LogInformation("Successfully published ticker message to Kafka");
+                }
+                else if (root.TryGetProperty("channel", out var channelProperty) && channelProperty.GetString() == "heartbeats")
+                {
+                    _logger.LogInformation("Detected channel: heartbeats");
+                    if (root.TryGetProperty("events", out var eventsElement) && eventsElement.ValueKind == JsonValueKind.Array)
+                    {
+                        var firstEvent = eventsElement.EnumerateArray().FirstOrDefault();
+                        if (firstEvent.TryGetProperty("current_time", out var timeElement) &&
+                            firstEvent.TryGetProperty("heartbeat_counter", out var counterElement))
+                        {
+                            var time = timeElement.GetString();
+                            var counter = counterElement.GetString();
+                            _logger.LogInformation($"Heartbeat: Time={time}, Counter={counter}");
+                        }
+                    }
+                }
+                else if (root.TryGetProperty("events", out var eventsElement) && eventsElement.ValueKind == JsonValueKind.Array)
+                {
+                    var firstEvent = eventsElement.EnumerateArray().FirstOrDefault();
+                    if (firstEvent.TryGetProperty("current_time", out var timeElement) &&
+                        firstEvent.TryGetProperty("heartbeat_counter", out var counterElement))
+                    {
+                        var time = timeElement.GetString();
+                        var counter = counterElement.GetString();
+                        _logger.LogInformation($"Heartbeat: Time={time}, Counter={counter}");
+                    }
+                }
+                else
+                {
+                    _logger.LogError("Unknown message type received");
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to produce message to Kafka. Continuing processing.");
+                _logger.LogError(ex, "Error processing received message");
             }
         }
 

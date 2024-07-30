@@ -8,12 +8,21 @@ namespace CoinbaseWebSocketClient.Services
 {
     public class WebSocketClient : IWebSocketClient
     {
-        private readonly ClientWebSocket _clientWebSocket = new ClientWebSocket();
+        private ClientWebSocket _clientWebSocket;
 
-        public WebSocketState State => _clientWebSocket.State;
+        public WebSocketState State => _clientWebSocket?.State ?? WebSocketState.None;
 
-        public Task ConnectAsync(Uri uri, CancellationToken cancellationToken)
-            => _clientWebSocket.ConnectAsync(uri, cancellationToken);
+        public WebSocketClient()
+        {
+            _clientWebSocket = new ClientWebSocket();
+        }
+
+        public async Task ConnectAsync(Uri uri, CancellationToken cancellationToken)
+        {
+            // Create a new ClientWebSocket instance for each connection
+            _clientWebSocket = new ClientWebSocket();
+            await _clientWebSocket.ConnectAsync(uri, cancellationToken);
+        }
 
         public Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
             => _clientWebSocket.SendAsync(buffer, messageType, endOfMessage, cancellationToken);
