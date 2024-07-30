@@ -11,28 +11,27 @@ namespace CoinbaseWebSocketClient.Services
     {
         private IProducer<Null, string>? _producer;
         private readonly ILogger<KafkaProducer> _logger;
-        private readonly string _topic;
+        private readonly IConfig _config;
         private bool _isInitialized = false;
 
-        public KafkaProducer(ILogger<KafkaProducer> logger)
+        public KafkaProducer(ILogger<KafkaProducer> logger, IConfig config)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _topic = Environment.GetEnvironmentVariable("KAFKA_TOPIC") ?? throw new ArgumentNullException("KAFKA_TOPIC");
-            
+            _logger = logger;
+            _config = config;
+            InitializeProducer();
+        }
+
+        private void InitializeProducer()
+        {
             var producerConfig = new ProducerConfig
             {
-                BootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? throw new ArgumentNullException("KAFKA_BOOTSTRAP_SERVERS"),
+                BootstrapServers = _config.KafkaBootstrapServers,
                 SecurityProtocol = SecurityProtocol.SaslPlaintext,
                 SaslMechanism = SaslMechanism.ScramSha256,
-                SaslUsername = Environment.GetEnvironmentVariable("KAFKA_USERNAME") ?? throw new ArgumentNullException("KAFKA_USERNAME"),
-                SaslPassword = Environment.GetEnvironmentVariable("KAFKA_PASSWORD") ?? throw new ArgumentNullException("KAFKA_PASSWORD"),
+                SaslUsername = _config.KafkaUsername,
+                SaslPassword = _config.KafkaPassword,
+                Debug = _config.KafkaDebug
             };
-
-            var kafkaDebug = Environment.GetEnvironmentVariable("KAFKA_DEBUG");
-            if (!string.IsNullOrEmpty(kafkaDebug))
-            {
-                producerConfig.Debug = kafkaDebug;
-            }
 
             _logger.LogInformation($"Initializing Kafka producer with config: {System.Text.Json.JsonSerializer.Serialize(producerConfig)}");
 
@@ -58,19 +57,12 @@ namespace CoinbaseWebSocketClient.Services
 
             try
             {
-                _logger.LogInformation($"Attempting to produce message to Kafka topic '{_topic}': {message}");
-                var deliveryResult = await _producer.ProduceAsync(_topic, new Message<Null, string> { Value = message });
-                _logger.LogInformation($"Delivered message to {deliveryResult.TopicPartitionOffset}");
+                var result = await _producer.ProduceAsync(_config.KafkaTopic, new Message<Null, string> { Value = message });
+                _logger.LogInformation($"Delivered message to {result.TopicPartitionOffset}");
             }
             catch (ProduceException<Null, string> e)
             {
-                _logger.LogError($"Delivery failed: {e.Error.Reason}. Error Code: {e.Error.Code}. Message: {e.Error.ToString()}");
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error producing message to Kafka. Message: {ex.Message}. StackTrace: {ex.StackTrace}");
-                throw;
+                _logger.LogError($"Delivery failed: {e.Error.Reason}");
             }
         }
 

@@ -10,13 +10,13 @@ namespace CoinbaseWebSocketClient.Services
 {
     public class WebSocketManager
     {
+        private readonly List<WebSocketHandler> _handlers = new List<WebSocketHandler>();
         private readonly ILogger<WebSocketManager> _logger;
         private readonly IMessageProcessor _messageProcessor;
         private readonly IConfig _config;
         private readonly IJwtGenerator _jwtGenerator;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly List<WebSocketHandler> _handlers = new List<WebSocketHandler>();
-        private readonly IWebSocketClient _webSocketClient;
+        private readonly Func<IWebSocketClient> _webSocketClientFactory;
 
         public WebSocketManager(
             ILogger<WebSocketManager> logger,
@@ -24,14 +24,14 @@ namespace CoinbaseWebSocketClient.Services
             IConfig config,
             IJwtGenerator jwtGenerator,
             ILoggerFactory loggerFactory,
-            IWebSocketClient webSocketClient)
+            Func<IWebSocketClient> webSocketClientFactory)
         {
             _logger = logger;
             _messageProcessor = messageProcessor;
             _config = config;
             _jwtGenerator = jwtGenerator;
             _loggerFactory = loggerFactory;
-            _webSocketClient = webSocketClient;
+            _webSocketClientFactory = webSocketClientFactory;
         }
 
         public async Task InitializeConnections()
@@ -43,7 +43,8 @@ namespace CoinbaseWebSocketClient.Services
                     _messageProcessor,
                     _config,
                     _jwtGenerator,
-                    _webSocketClient
+                    _webSocketClientFactory(),
+                    productId
                 );
                 _handlers.Add(handler);
                 await handler.ConnectAndSubscribe(productId);
@@ -52,7 +53,7 @@ namespace CoinbaseWebSocketClient.Services
 
         public async Task StartReceiving()
         {
-            var receiveTasks = _handlers.Select(h => h.ReceiveMessages()).ToList();
+            var receiveTasks = _handlers.Select(h => h.ReceiveMessages(h.ProductId)).ToList();
             await Task.WhenAll(receiveTasks);
         }
     }

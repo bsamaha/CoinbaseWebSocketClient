@@ -23,8 +23,9 @@ namespace CoinbaseWebSocketClient.Services
         private readonly RateLimiter _messageRateLimiter;
         private readonly IJwtGenerator _jwtGenerator;
         private static readonly SemaphoreSlim ConnectionSemaphore = new SemaphoreSlim(5, 5);
+        public string ProductId { get; private set; }
 
-        public WebSocketHandler(ILogger<WebSocketHandler> logger, IMessageProcessor messageProcessor, IConfig config, IJwtGenerator jwtGenerator, IWebSocketClient webSocket)
+        public WebSocketHandler(ILogger<WebSocketHandler> logger, IMessageProcessor messageProcessor, IConfig config, IJwtGenerator jwtGenerator, IWebSocketClient webSocket, string productId)
         {
             _logger = logger;
             _messageProcessor = messageProcessor;
@@ -32,6 +33,7 @@ namespace CoinbaseWebSocketClient.Services
             _jwtGenerator = jwtGenerator;
             _webSocket = webSocket;
             _messageRateLimiter = new RateLimiter(300, 30); // 300 messages per 10 seconds
+            ProductId = productId;
         }
 
         public async Task ConnectAndSubscribe(string? productId)
@@ -62,6 +64,15 @@ namespace CoinbaseWebSocketClient.Services
                 _logger?.LogInformation("Sending subscription message for product: {ProductId}", productId ?? "All");
                 await _webSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(subscribeJson)), WebSocketMessageType.Text, true, CancellationToken.None);
                 _logger?.LogInformation("Subscription message sent for product: {ProductId}", productId ?? "All");
+
+                // Wait for subscription acknowledgment
+                var buffer = new byte[8192];
+                var result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                if (result.MessageType == WebSocketMessageType.Text)
+                {
+                    var acknowledgment = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    _logger.LogInformation($"Received subscription acknowledgment for {productId ?? "All"}: {acknowledgment}");
+                }
             }
             catch (Exception ex)
             {
@@ -76,22 +87,33 @@ namespace CoinbaseWebSocketClient.Services
             }
         }
 
-        public async Task ReceiveMessages()
+        public async Task ReceiveMessages(string productId)
         {
-            var buffer = new byte[_config.WebSocketBufferSize];
-            while (_webSocket.State == WebSocketState.Open)
+            _logger.LogInformation($"Starting to receive messages for {productId}");
+            var buffer = new byte[1024 * 1024]; // Increase buffer size to 1MB
+            try
             {
-                var result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                if (result.MessageType == WebSocketMessageType.Close)
+                while (_webSocket.State == WebSocketState.Open)
                 {
-                    await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
-                }
-                else
-                {
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    await _messageProcessor.ProcessReceivedMessage(message);
+                    var result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        _logger.LogInformation($"Received message for {productId}: {message.Substring(0, Math.Min(100, message.Length))}...");
+                        await _messageProcessor.ProcessReceivedMessage(message, productId);
+                    }
+                    else if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+                        break;
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error receiving messages for {productId}");
+            }
+            _logger.LogInformation($"Stopped receiving messages for {productId}");
         }
     }
 }

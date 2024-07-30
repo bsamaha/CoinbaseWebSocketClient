@@ -23,7 +23,6 @@ namespace CoinbaseWebSocketClient.Utilities
 
             var options = new JsonSerializerOptions
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 PropertyNameCaseInsensitive = true
             };
 
@@ -35,12 +34,22 @@ namespace CoinbaseWebSocketClient.Utilities
                     throw new InvalidOperationException("Deserialized config is null.");
                 }
 
-                // Load Kafka password from environment variable
-                config.KafkaPassword = Environment.GetEnvironmentVariable("KAFKA_PASSWORD") ?? "";
+                // Override with environment variables if they exist
+                config.ApiKey = Environment.GetEnvironmentVariable("COINBASE_API_KEY") ?? config.ApiKey;
+                config.PrivateKey = Environment.GetEnvironmentVariable("COINBASE_PRIVATE_KEY") ?? config.PrivateKey;
+                config.WebSocketUrl = Environment.GetEnvironmentVariable("COINBASE_WEBSOCKET_URL") ?? config.WebSocketUrl;
+                config.ProductIds = (Environment.GetEnvironmentVariable("COINBASE_PRODUCT_IDS") ?? string.Join(",", config.ProductIds)).Split(',').ToList();
+                config.Channel = Environment.GetEnvironmentVariable("COINBASE_CHANNEL") ?? config.Channel;
+                config.WebSocketBufferSize = int.Parse(Environment.GetEnvironmentVariable("WEBSOCKET_BUFFER_SIZE") ?? config.WebSocketBufferSize.ToString());
+                config.KafkaBootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? config.KafkaBootstrapServers;
+                config.KafkaTopic = Environment.GetEnvironmentVariable("KAFKA_TOPIC") ?? config.KafkaTopic;
+                config.KafkaUsername = Environment.GetEnvironmentVariable("KAFKA_USERNAME") ?? config.KafkaUsername;
+                config.KafkaPassword = Environment.GetEnvironmentVariable("KAFKA_PASSWORD") ?? config.KafkaPassword;
+                config.KafkaDebug = Environment.GetEnvironmentVariable("KAFKA_DEBUG") ?? config.KafkaDebug;
 
                 if (string.IsNullOrEmpty(config.KafkaUsername) || string.IsNullOrEmpty(config.KafkaPassword))
                 {
-                    logger.LogWarning("Kafka username or password is not set. Make sure to set the kafkaUsername in appsettings.json and the KAFKA_PASSWORD environment variable.");
+                    logger.LogWarning("Kafka username or password is not set. Make sure to set them in appsettings.json or as environment variables.");
                 }
 
                 logger.LogInformation("Configuration loaded successfully.");

@@ -35,6 +35,12 @@ namespace CoinbaseWebSocketClient
                 var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
                 var logger = loggerFactory.CreateLogger<Program>();
                 var config = ConfigurationLoader.LoadConfiguration(logger);
+
+                if (string.IsNullOrEmpty(config.KafkaUsername) || string.IsNullOrEmpty(config.KafkaPassword))
+                {
+                    throw new InvalidOperationException("Kafka username and password must be set. Please check your environment variables.");
+                }
+
                 return new Config
                 {
                     ApiKey = config.ApiKey,
@@ -54,7 +60,8 @@ namespace CoinbaseWebSocketClient
             services.AddSingleton<IJwtGenerator, JwtGenerator>();
             services.AddSingleton<IKafkaProducer, KafkaProducer>();
             services.AddSingleton<IMessageProcessor, MessageProcessor>();
-            services.AddSingleton<IWebSocketClient, WebSocketClient>(); // Added this line
+            services.AddTransient<IWebSocketClient, WebSocketClient>();
+            services.AddSingleton<Func<IWebSocketClient>>(sp => () => sp.GetRequiredService<IWebSocketClient>());
             services.AddSingleton<WebSocketManager>();
         }
     }

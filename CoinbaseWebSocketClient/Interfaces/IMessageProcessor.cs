@@ -4,6 +4,6 @@ namespace CoinbaseWebSocketClient.Interfaces
 {
     public interface IMessageProcessor
     {
-        Task ProcessReceivedMessage(string receivedMessage);
+        Task ProcessReceivedMessage(string message, string productId);
     }
 }

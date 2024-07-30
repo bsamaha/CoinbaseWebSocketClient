@@ -22,55 +22,51 @@ namespace CoinbaseWebSocketClient.Services
             _kafkaProducer = kafkaProducer;
         }
 
-        public async Task ProcessReceivedMessage(string receivedMessage)
+        public async Task ProcessReceivedMessage(string message, string productId)
         {
-            _logger.LogInformation("Received message: {Message}", receivedMessage);
-
+            _logger.LogInformation($"Processing received message for {productId}: {message.Substring(0, Math.Min(100, message.Length))}...");
             try
             {
-                var jsonDocument = JsonDocument.Parse(receivedMessage);
+                var jsonDocument = JsonDocument.Parse(message);
                 var root = jsonDocument.RootElement;
 
-                if (root.TryGetProperty("type", out var typeProperty) && typeProperty.GetString() == "ticker")
+                if (root.TryGetProperty("channel", out var channelProperty))
                 {
-                    _logger.LogInformation("Processing ticker message");
-                    await _kafkaProducer.ProduceMessage(receivedMessage);
-                    _logger.LogInformation("Successfully published ticker message to Kafka");
-                }
-                else if (root.TryGetProperty("channel", out var channelProperty) && channelProperty.GetString() == "heartbeats")
-                {
-                    _logger.LogInformation("Detected channel: heartbeats");
-                    if (root.TryGetProperty("events", out var eventsElement) && eventsElement.ValueKind == JsonValueKind.Array)
+                    switch (channelProperty.GetString())
                     {
-                        var firstEvent = eventsElement.EnumerateArray().FirstOrDefault();
-                        if (firstEvent.TryGetProperty("current_time", out var timeElement) &&
-                            firstEvent.TryGetProperty("heartbeat_counter", out var counterElement))
-                        {
-                            var time = timeElement.GetString();
-                            var counter = counterElement.GetString();
-                            _logger.LogInformation($"Heartbeat: Time={time}, Counter={counter}");
-                        }
-                    }
-                }
-                else if (root.TryGetProperty("events", out var eventsElement) && eventsElement.ValueKind == JsonValueKind.Array)
-                {
-                    var firstEvent = eventsElement.EnumerateArray().FirstOrDefault();
-                    if (firstEvent.TryGetProperty("current_time", out var timeElement) &&
-                        firstEvent.TryGetProperty("heartbeat_counter", out var counterElement))
-                    {
-                        var time = timeElement.GetString();
-                        var counter = counterElement.GetString();
-                        _logger.LogInformation($"Heartbeat: Time={time}, Counter={counter}");
+                        case "candles":
+                            if (root.TryGetProperty("events", out var eventsProperty) && eventsProperty.ValueKind == JsonValueKind.Array)
+                            {
+                                var firstEvent = eventsProperty[0];
+                                if (firstEvent.TryGetProperty("candles", out var candlesProperty) && candlesProperty.ValueKind == JsonValueKind.Array)
+                                {
+                                    var firstCandle = candlesProperty[0];
+                                    if (firstCandle.TryGetProperty("product_id", out var productIdProperty))
+                                    {
+                                        string messageProductId = productIdProperty.GetString();
+                                        _logger.LogInformation($"Message product ID: {messageProductId}, Expected product ID: {productId}");
+                                    }
+                                }
+                            }
+                            _logger.LogInformation($"Producing message to Kafka for {productId}");
+                            await _kafkaProducer.ProduceMessage(message);
+                            break;
+                        case "heartbeats":
+                            ProcessHeartbeat(root);
+                            break;
+                        default:
+                            _logger.LogInformation($"Received message for unknown channel: {channelProperty.GetString()}");
+                            break;
                     }
                 }
                 else
                 {
-                    _logger.LogError("Unknown message type received");
+                    _logger.LogInformation($"Received message without channel property for {productId}");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing received message");
+                _logger.LogError($"Error processing message for {productId}: {ex.Message}");
             }
         }
 
