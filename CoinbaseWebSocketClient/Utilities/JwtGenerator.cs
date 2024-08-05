@@ -1,11 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Security.Claims;
 using System.Security.Cryptography;
 using Jose;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Logging;
 using CoinbaseWebSocketClient.Interfaces;
 
@@ -23,6 +19,7 @@ namespace CoinbaseWebSocketClient.Utilities
 
         public string GenerateJwt(string apiKey, string privateKey)
         {
+            _logger.LogDebug("Generating JWT for API Key: {ApiKey}", apiKey);
             string key = ParseKey(privateKey);
             var jwt = GenerateToken(apiKey, key);
             _logger.LogInformation("Generated JWT: {JWT}", jwt);
@@ -41,19 +38,17 @@ namespace CoinbaseWebSocketClient.Utilities
                 { "sub", apiKey },
                 { "iss", "coinbase-cloud" },
                 { "nbf", now.ToUnixTimeSeconds() },
-                { "exp", now.AddMinutes(5).ToUnixTimeSeconds() },
-                { "iat", now.ToUnixTimeSeconds() }
+                { "exp", now.AddMinutes(1).ToUnixTimeSeconds() }
             };
 
             var extraHeaders = new Dictionary<string, object>
             {
                 { "kid", apiKey },
-                { "nonce", RandomHex(16) },
+                { "nonce", RandomHex(10) },
                 { "typ", "JWT" }
             };
 
-            var encodedToken = JWT.Encode(payload, key, JwsAlgorithm.ES256, extraHeaders);
-            return encodedToken;
+            return JWT.Encode(payload, key, JwsAlgorithm.ES256, extraHeaders);
         }
 
         private static string ParseKey(string key)

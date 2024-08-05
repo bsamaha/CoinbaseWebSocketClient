@@ -1,25 +1,26 @@
-using System;
-using System.IO;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
+
 using Microsoft.Extensions.Logging;
 using CoinbaseWebSocketClient.Configuration;
-using CoinbaseWebSocketClient.Models;
-using CoinbaseWebSocketClient.Utilities;
 using CoinbaseWebSocketClient.Interfaces;
-
+using CoinbaseWebSocketClient.Models;
 namespace CoinbaseWebSocketClient.Services
 {
     public class MessageProcessor : IMessageProcessor
     {
         private readonly ILogger<MessageProcessor> _logger;
-        private readonly IKafkaProducer _kafkaProducer;
+        private readonly Dictionary<string, Func<JsonElement, string, Task>> _channelProcessors;
 
-        public MessageProcessor(ILogger<MessageProcessor> logger, IKafkaProducer kafkaProducer)
+        public MessageProcessor(ILogger<MessageProcessor> logger)
         {
             _logger = logger;
-            _kafkaProducer = kafkaProducer;
+            _channelProcessors = new Dictionary<string, Func<JsonElement, string, Task>>
+            {
+                { Constants.Channels.Candles, ProcessCandlesMessage },
+                { Constants.Channels.Status, ProcessStatusMessage },
+                { Constants.Channels.MarketTrades, ProcessMarketTradesMessage },
+                { Constants.Channels.Heartbeats, ProcessHeartbeat }
+            };
         }
 
         public async Task ProcessReceivedMessage(string message, string productId)
@@ -27,36 +28,20 @@ namespace CoinbaseWebSocketClient.Services
             _logger.LogInformation($"Processing received message for {productId}: {message.Substring(0, Math.Min(100, message.Length))}...");
             try
             {
-                var jsonDocument = JsonDocument.Parse(message);
-                var root = jsonDocument.RootElement;
+                var rootJson = ParseMessage(message);
 
-                if (root.TryGetProperty("channel", out var channelProperty))
+                if (rootJson.TryGetProperty("channel", out var channelProperty))
                 {
-                    switch (channelProperty.GetString())
+                    var channel = channelProperty.GetString();
+                    _logger.LogInformation($"Received message for channel: {channel}");
+
+                    if (channel != null && _channelProcessors.TryGetValue(channel, out var processor))
                     {
-                        case "candles":
-                            if (root.TryGetProperty("events", out var eventsProperty) && eventsProperty.ValueKind == JsonValueKind.Array)
-                            {
-                                var firstEvent = eventsProperty[0];
-                                if (firstEvent.TryGetProperty("candles", out var candlesProperty) && candlesProperty.ValueKind == JsonValueKind.Array)
-                                {
-                                    var firstCandle = candlesProperty[0];
-                                    if (firstCandle.TryGetProperty("product_id", out var productIdProperty))
-                                    {
-                                        string messageProductId = productIdProperty.GetString();
-                                        _logger.LogInformation($"Message product ID: {messageProductId}, Expected product ID: {productId}");
-                                    }
-                                }
-                            }
-                            _logger.LogInformation($"Producing message to Kafka for {productId}");
-                            await _kafkaProducer.ProduceMessage(message);
-                            break;
-                        case "heartbeats":
-                            ProcessHeartbeat(root);
-                            break;
-                        default:
-                            _logger.LogInformation($"Received message for unknown channel: {channelProperty.GetString()}");
-                            break;
+                        await processor(rootJson, productId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Received message for unhandled or null channel: {channel}");
                     }
                 }
                 else
@@ -70,25 +55,145 @@ namespace CoinbaseWebSocketClient.Services
             }
         }
 
-        private void ProcessHeartbeat(JsonElement root)
+        private JsonElement ParseMessage(string message)
         {
-            if (root.TryGetProperty("events", out var eventsElement) && eventsElement.ValueKind == JsonValueKind.Array)
+            var jsonDocument = JsonDocument.Parse(message);
+            return jsonDocument.RootElement;
+        }
+
+        private Task ProcessCandlesMessage(JsonElement root, string productId)
+        {
+            if (!root.TryGetProperty("events", out var events))
             {
-                var firstEvent = eventsElement.EnumerateArray().FirstOrDefault();
-                if (firstEvent.TryGetProperty("current_time", out var timeElement) &&
-                    firstEvent.TryGetProperty("heartbeat_counter", out var counterElement))
-                {
-                    var time = timeElement.GetString();
-                    var counter = counterElement.GetString();
-                    _logger.LogInformation($"Heartbeat: Time={time}, Counter={counter}");
-                }
+                _logger.LogWarning("No events property found in candle message");
+                return Task.CompletedTask;
+            }
+
+            foreach (var eventElement in events.EnumerateArray())
+            {
+                ProcessCandleEvent(eventElement);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        private void ProcessCandleEvent(JsonElement eventElement)
+        {
+            if (!TryGetEventType(eventElement, out var type) || type == null)
+            {
+                return;
+            }
+
+            if (type == "snapshot" || type == "update")
+            {
+                ProcessCandlesForEvent(eventElement, type);
+            }
+            else
+            {
+                _logger.LogWarning($"Unexpected event type in candle message: {type}");
             }
         }
 
-        private async Task ProcessTicker(string message)
+        private bool TryGetEventType(JsonElement eventElement, out string? type)
         {
-            _logger.LogInformation($"Processing ticker message: {message}");
-            await _kafkaProducer.ProduceMessage(message);
+            if (!eventElement.TryGetProperty("type", out var typeProperty))
+            {
+                _logger.LogWarning("No type property found in candle event");
+                type = null;
+                return false;
+            }
+
+            type = typeProperty.GetString();
+            return true;
+        }
+
+        private void ProcessCandlesForEvent(JsonElement eventElement, string type)
+        {
+            if (!eventElement.TryGetProperty("candles", out var candles))
+            {
+                _logger.LogWarning($"No candles property found in {type} event");
+                return;
+            }
+
+            foreach (var candle in candles.EnumerateArray())
+            {
+                ProcessSingleCandle(candle);
+            }
+        }
+
+        private void ProcessSingleCandle(JsonElement candle)
+        {
+            try
+            {
+                var candleData = new Candle
+                {
+                    Start = candle.GetProperty("start").GetString() ?? "",
+                    High = candle.GetProperty("high").GetString() ?? "",
+                    Low = candle.GetProperty("low").GetString() ?? "",
+                    Open = candle.GetProperty("open").GetString() ?? "",
+                    Close = candle.GetProperty("close").GetString() ?? "",
+                    Volume = candle.GetProperty("volume").GetString() ?? "",
+                    ProductId = candle.GetProperty("product_id").GetString() ?? ""
+                };
+                LogCandleData(candleData);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing candle data: {ex.Message}");
+            }
+        }
+
+        private void LogCandleData(Candle candleData)
+        {
+            _logger.LogInformation($"Candle: ProductId={candleData.ProductId}, Open={candleData.Open}, Close={candleData.Close}, High={candleData.High}, Low={candleData.Low}, Volume={candleData.Volume}");
+        }
+
+        private Task ProcessHeartbeat(JsonElement root, string productId)
+        {
+            var heartbeatMessage = JsonSerializer.Deserialize<HeartbeatMessage>(root.GetRawText());
+            if (heartbeatMessage?.Events.FirstOrDefault() is HeartbeatEvent firstEvent)
+            {
+                _logger.LogInformation($"Heartbeat: Time={firstEvent.CurrentTime}, Counter={firstEvent.HeartbeatCounter}");
+            }
+            else
+            {
+                _logger.LogWarning("No heartbeat data found in the message");
+            }
+            return Task.CompletedTask;
+        }
+
+        private Task ProcessStatusMessage(JsonElement root, string productId)
+        {
+            var statusMessage = JsonSerializer.Deserialize<StatusMessage>(root.GetRawText());
+            if (statusMessage?.Events.FirstOrDefault() is StatusEvent firstEvent)
+            {
+                foreach (var product in firstEvent.Products)
+                {
+                    _logger.LogInformation($"Status: ProductId={product.Id}, Status={product.Status}, StatusMessage={product.StatusMessage}");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("No status data found in the message");
+            }
+            return Task.CompletedTask;
+        }
+
+        private Task ProcessMarketTradesMessage(JsonElement root, string productId)
+        {
+            var marketTradesMessage = JsonSerializer.Deserialize<MarketTradesMessage>(root.GetRawText());
+            if (marketTradesMessage?.Events.FirstOrDefault() is MarketTradeEvent firstEvent)
+            {
+                foreach (var trade in firstEvent.Trades)
+                {
+                    _logger.LogInformation($"Trade: ProductId={trade.ProductId}, Price={trade.Price}, Size={trade.Size}, Side={trade.Side}, Time={trade.Time}");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("No market trade data found in the message");
+            }
+            return Task.CompletedTask;
         }
     }
 }

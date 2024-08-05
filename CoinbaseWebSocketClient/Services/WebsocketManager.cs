@@ -1,59 +1,54 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Linq;
 using Microsoft.Extensions.Logging;
-using CoinbaseWebSocketClient.Configuration;
-using CoinbaseWebSocketClient.Utilities;
 using CoinbaseWebSocketClient.Interfaces;
 
 namespace CoinbaseWebSocketClient.Services
 {
+    public record WebSocketManagerConfig(
+        ILogger<WebSocketManager> Logger,
+        IMessageProcessor MessageProcessor,
+        IConfig Config,
+        IJwtGenerator JwtGenerator,
+        ILoggerFactory LoggerFactory,
+        Func<IWebSocketClient> WebSocketClientFactory
+    );
+
     public class WebSocketManager
     {
-        private readonly List<WebSocketHandler> _handlers = new List<WebSocketHandler>();
-        private readonly ILogger<WebSocketManager> _logger;
-        private readonly IMessageProcessor _messageProcessor;
-        private readonly IConfig _config;
-        private readonly IJwtGenerator _jwtGenerator;
-        private readonly ILoggerFactory _loggerFactory;
-        private readonly Func<IWebSocketClient> _webSocketClientFactory;
+        private readonly WebSocketManagerConfig _config;
+        private readonly Dictionary<string, WebSocketHandler> _handlers = new();
 
-        public WebSocketManager(
-            ILogger<WebSocketManager> logger,
-            IMessageProcessor messageProcessor,
-            IConfig config,
-            IJwtGenerator jwtGenerator,
-            ILoggerFactory loggerFactory,
-            Func<IWebSocketClient> webSocketClientFactory)
+        public WebSocketManager(WebSocketManagerConfig config)
         {
-            _logger = logger;
-            _messageProcessor = messageProcessor;
             _config = config;
-            _jwtGenerator = jwtGenerator;
-            _loggerFactory = loggerFactory;
-            _webSocketClientFactory = webSocketClientFactory;
         }
 
         public async Task InitializeConnections()
         {
-            foreach (var productId in _config.ProductIds)
+            foreach (var productId in _config.Config.ProductIds)
             {
-                var handler = new WebSocketHandler(
-                    _loggerFactory.CreateLogger<WebSocketHandler>(),
-                    _messageProcessor,
-                    _config,
-                    _jwtGenerator,
-                    _webSocketClientFactory(),
+                var handler = new WebSocketHandler(new WebSocketHandlerConfig(
+                    _config.LoggerFactory.CreateLogger<WebSocketHandler>(),
+                    _config.MessageProcessor,
+                    _config.Config,
+                    _config.JwtGenerator,
+                    _config.WebSocketClientFactory(),
                     productId
-                );
-                _handlers.Add(handler);
-                await handler.ConnectAndSubscribe(productId);
+                ));
+                _handlers[productId] = handler;
+                await handler.ConnectAndSubscribe();
             }
         }
 
         public async Task StartReceiving()
         {
-            var receiveTasks = _handlers.Select(h => h.ReceiveMessages(h.ProductId)).ToList();
+            var receiveTasks = new List<Task>();
+            foreach (var handler in _handlers.Values)
+            {
+                receiveTasks.Add(handler.ReceiveMessages());
+            }
             await Task.WhenAll(receiveTasks);
         }
     }

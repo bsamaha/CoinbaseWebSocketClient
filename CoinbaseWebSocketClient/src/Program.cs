@@ -32,36 +32,34 @@ namespace CoinbaseWebSocketClient
 
             services.AddSingleton<IConfig>(sp =>
             {
-                var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-                var logger = loggerFactory.CreateLogger<Program>();
-                var config = ConfigurationLoader.LoadConfiguration(logger);
-
-                if (string.IsNullOrEmpty(config.KafkaUsername) || string.IsNullOrEmpty(config.KafkaPassword))
-                {
-                    throw new InvalidOperationException("Kafka username and password must be set. Please check your environment variables.");
-                }
-
-                return new Config
-                {
-                    ApiKey = config.ApiKey,
-                    PrivateKey = config.PrivateKey,
-                    WebSocketUrl = config.WebSocketUrl,
-                    ProductIds = config.ProductIds,
-                    Channel = config.Channel,
-                    WebSocketBufferSize = config.WebSocketBufferSize,
-                    KafkaBootstrapServers = config.KafkaBootstrapServers,
-                    KafkaTopic = config.KafkaTopic,
-                    KafkaUsername = config.KafkaUsername,
-                    KafkaPassword = config.KafkaPassword,
-                    KafkaDebug = config.KafkaDebug
-                };
+                var logger = sp.GetRequiredService<ILogger<Config>>();
+                return new Config(logger);
             });
 
             services.AddSingleton<IJwtGenerator, JwtGenerator>();
-            services.AddSingleton<IKafkaProducer, KafkaProducer>();
             services.AddSingleton<IMessageProcessor, MessageProcessor>();
             services.AddTransient<IWebSocketClient, WebSocketClient>();
             services.AddSingleton<Func<IWebSocketClient>>(sp => () => sp.GetRequiredService<IWebSocketClient>());
+
+            services.AddSingleton(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<WebSocketManager>>();
+                var messageProcessor = sp.GetRequiredService<IMessageProcessor>();
+                var config = sp.GetRequiredService<IConfig>();
+                var jwtGenerator = sp.GetRequiredService<IJwtGenerator>();
+                var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+                var webSocketClientFactory = sp.GetRequiredService<Func<IWebSocketClient>>();
+
+                return new WebSocketManagerConfig(
+                    logger,
+                    messageProcessor,
+                    config,
+                    jwtGenerator,
+                    loggerFactory,
+                    webSocketClientFactory
+                );
+            });
+
             services.AddSingleton<WebSocketManager>();
         }
     }

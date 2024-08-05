@@ -4,9 +4,10 @@ namespace CoinbaseWebSocketClient.Models
 {
     public class CandlesMessage
     {
+        public string Type { get; set; } = "candles";
         public string Channel { get; set; } = "candles";
         public string ClientId { get; set; } = "";
-        public DateTime Timestamp { get; set; }
+        public string Timestamp { get; set; } = "";
         public int SequenceNum { get; set; }
         public CandleEvent[] Events { get; set; } = Array.Empty<CandleEvent>();
     }
