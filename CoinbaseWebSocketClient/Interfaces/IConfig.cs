@@ -10,5 +10,11 @@ namespace CoinbaseWebSocketClient.Interfaces
         List<string> ProductIds { get; set; }
         string Channel { get; set; }
         int WebSocketBufferSize { get; set; }
+        string KafkaBootstrapServers { get; set; }
+        string KafkaClientId { get; set; }
+        string KafkaSecurityProtocol { get; set; }
+        string KafkaSaslMechanism { get; set; }
+        string KafkaSaslUsername { get; set; }
+        string KafkaSaslPassword { get; set; }
     }
 }
