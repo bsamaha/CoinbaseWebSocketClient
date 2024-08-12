@@ -4,6 +4,7 @@ using System.Linq;
 using CoinbaseWebSocketClient.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
+using Confluent.Kafka;
 
 namespace CoinbaseWebSocketClient.Configuration
 {
@@ -24,11 +25,10 @@ namespace CoinbaseWebSocketClient.Configuration
         private string _channel = Constants.Channels.Candles;
         private int _webSocketBufferSize = 32768;
 
-        // Updated Kafka-related properties with new default values
         public string KafkaBootstrapServers { get; set; } = "kafka-broker-0.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-1.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-2.kafka-broker-headless.kafka.svc.cluster.local:9092";
         public string KafkaClientId { get; set; } = "coinbase-websocket-client";
-        public string KafkaSecurityProtocol { get; set; } = "SASL_PLAINTEXT";
-        public string KafkaSaslMechanism { get; set; } = "SCRAM-SHA-256";
+        public SecurityProtocol KafkaSecurityProtocol { get; set; } = SecurityProtocol.SaslPlaintext;
+        public SaslMechanism KafkaSaslMechanism { get; set; } = SaslMechanism.ScramSha256;
         public string KafkaSaslUsername { get; set; } = "user1";
         public string KafkaSaslPassword { get; set; } = "a93LhjbIFQ";
 
@@ -97,8 +97,12 @@ namespace CoinbaseWebSocketClient.Configuration
 
             KafkaBootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? throw new InvalidOperationException("KAFKA_BOOTSTRAP_SERVERS is not set");
             KafkaClientId = Environment.GetEnvironmentVariable("KAFKA_CLIENT_ID") ?? throw new InvalidOperationException("KAFKA_CLIENT_ID is not set");
-            KafkaSecurityProtocol = Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL") ?? throw new InvalidOperationException("KAFKA_SECURITY_PROTOCOL is not set");
-            KafkaSaslMechanism = Environment.GetEnvironmentVariable("KAFKA_SASL_MECHANISM") ?? throw new InvalidOperationException("KAFKA_SASL_MECHANISM is not set");
+            KafkaSecurityProtocol = Enum.TryParse<SecurityProtocol>(Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL"), true, out var securityProtocol) 
+                ? securityProtocol 
+                : throw new InvalidOperationException("Invalid KAFKA_SECURITY_PROTOCOL");
+            KafkaSaslMechanism = Enum.TryParse<SaslMechanism>(Environment.GetEnvironmentVariable("KAFKA_SASL_MECHANISM"), true, out var saslMechanism) 
+                ? saslMechanism 
+                : throw new InvalidOperationException("Invalid KAFKA_SASL_MECHANISM");
             KafkaSaslUsername = Environment.GetEnvironmentVariable("KAFKA_SASL_USERNAME") ?? throw new InvalidOperationException("KAFKA_SASL_USERNAME is not set");
             KafkaSaslPassword = Environment.GetEnvironmentVariable("KAFKA_SASL_PASSWORD") ?? throw new InvalidOperationException("KAFKA_SASL_PASSWORD is not set");
 
@@ -114,7 +118,6 @@ namespace CoinbaseWebSocketClient.Configuration
             _logger.LogInformation($"Product IDs: {string.Join(", ", ProductIds)}");
             _logger.LogInformation($"Channel: {Channel}");
 
-            // Log Kafka configuration
             _logger.LogInformation($"Kafka Bootstrap Servers: {KafkaBootstrapServers}");
             _logger.LogInformation($"Kafka Client ID: {KafkaClientId}");
             _logger.LogInformation($"Kafka Security Protocol: {KafkaSecurityProtocol}");

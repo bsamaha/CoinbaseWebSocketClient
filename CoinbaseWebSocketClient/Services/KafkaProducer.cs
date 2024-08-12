@@ -17,10 +17,10 @@ namespace CoinbaseWebSocketClient.Services
             {
                 BootstrapServers = config.KafkaBootstrapServers,
                 ClientId = config.KafkaClientId,
-                SecurityProtocol = Enum.Parse<SecurityProtocol>(config.KafkaSecurityProtocol),
-                SaslMechanism = Enum.Parse<SaslMechanism>(config.KafkaSaslMechanism),
+                SecurityProtocol = config.KafkaSecurityProtocol,
+                SaslMechanism = config.KafkaSaslMechanism,
                 SaslUsername = config.KafkaSaslUsername,
-                SaslPassword = config.KafkaSaslPassword,
+                SaslPassword = config.KafkaSaslPassword
             };
             _producer = new ProducerBuilder<string, string>(producerConfig).Build();
         }

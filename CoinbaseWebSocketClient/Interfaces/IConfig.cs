@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Confluent.Kafka;
 
 namespace CoinbaseWebSocketClient.Interfaces
 {
@@ -12,8 +13,8 @@ namespace CoinbaseWebSocketClient.Interfaces
         int WebSocketBufferSize { get; set; }
         string KafkaBootstrapServers { get; set; }
         string KafkaClientId { get; set; }
-        string KafkaSecurityProtocol { get; set; }
-        string KafkaSaslMechanism { get; set; }
+        SecurityProtocol KafkaSecurityProtocol { get; set; }
+        SaslMechanism KafkaSaslMechanism { get; set; }
         string KafkaSaslUsername { get; set; }
         string KafkaSaslPassword { get; set; }
     }

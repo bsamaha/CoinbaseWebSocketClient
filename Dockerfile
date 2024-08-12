@@ -2,15 +2,17 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy csproj and restore dependencies
-COPY ["CoinbaseWebSocketClient/CoinbaseWebSocketClient.csproj", "./"]
-RUN dotnet restore "CoinbaseWebSocketClient.csproj"
+# Copy only the CoinbaseWebSocketClient project file
+COPY ["CoinbaseWebSocketClient/CoinbaseWebSocketClient.csproj", "CoinbaseWebSocketClient/"]
 
-# Copy the rest of the source code
-COPY CoinbaseWebSocketClient .
+# Restore dependencies
+RUN dotnet restore "CoinbaseWebSocketClient/CoinbaseWebSocketClient.csproj"
+
+# Copy only the CoinbaseWebSocketClient directory
+COPY CoinbaseWebSocketClient/ CoinbaseWebSocketClient/
 
 # Build and publish the application
-RUN dotnet publish "CoinbaseWebSocketClient.csproj" -c Release -o /app/publish
+RUN dotnet publish "CoinbaseWebSocketClient/CoinbaseWebSocketClient.csproj" -c Release -o /app/publish
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
