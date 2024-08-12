@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coinbase-websocket-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coinbase-websocket-client
+  template:
+    metadata:
+      labels:
+        app: coinbase-websocket-client
+    spec:
+      containers:
+      - name: coinbase-websocket-client
+        image: bsamaha/coinbase-websocket-client-test:latest
+        envFrom:
+        - secretRef:
+            name: coinbase-secrets
+        - secretRef:
+            name: kafka-secrets
+        env:
+        - name: COINBASE_WEBSOCKET_URL
+          value: "wss://advanced-trade-ws.coinbase.com"
+        - name: COINBASE_PRODUCT_IDS
+          value: "BTC-USD,ETH-USD"
+        - name: COINBASE_CHANNEL
+          value: "candles"

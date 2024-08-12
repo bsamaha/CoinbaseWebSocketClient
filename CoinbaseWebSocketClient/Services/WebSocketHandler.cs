@@ -8,24 +8,19 @@ using Microsoft.Extensions.Logging;
 using CoinbaseWebSocketClient.Interfaces;
 using CoinbaseWebSocketClient.Models;
 using CoinbaseWebSocketClient.Configuration;
+using Confluent.Kafka; // Add this for Kafka support
+
 namespace CoinbaseWebSocketClient.Services
 {
-    public record WebSocketHandlerConfig(
-        ILogger<WebSocketHandler> Logger,
-        IMessageProcessor MessageProcessor,
-        IConfig Config,
-        IJwtGenerator JwtGenerator,
-        IWebSocketClient WebSocket,
-        string ProductId
-    );
-
     public class WebSocketHandler
     {
-        private readonly WebSocketHandlerConfig _config;
+        private readonly IWebSocketHandlerConfig _config;
         private readonly RateLimiter _messageRateLimiter;
         private readonly byte[] _buffer;
+        private const int MaxReconnectAttempts = 5;
+        private const int InitialReconnectDelay = 1000; // 1 second
 
-        public WebSocketHandler(WebSocketHandlerConfig config)
+        public WebSocketHandler(IWebSocketHandlerConfig config)
         {
             _config = config;
             _messageRateLimiter = new RateLimiter(300, 30);
@@ -33,6 +28,11 @@ namespace CoinbaseWebSocketClient.Services
         }
 
         public async Task ConnectAndSubscribe()
+        {
+            await ConnectAndSubscribeWithRetry();
+        }
+
+        private async Task ConnectAndSubscribeWithRetry(int attemptCount = 0)
         {
             try
             {
@@ -59,32 +59,89 @@ namespace CoinbaseWebSocketClient.Services
             catch (Exception ex)
             {
                 _config.Logger.LogError(ex, "Error connecting to WebSocket for product: {ProductId}", _config.ProductId);
-                throw;
+                if (attemptCount < MaxReconnectAttempts)
+                {
+                    int delay = (int)Math.Pow(2, attemptCount) * InitialReconnectDelay;
+                    _config.Logger.LogInformation("Attempting to reconnect in {Delay}ms. Attempt {AttemptCount} of {MaxAttempts}", delay, attemptCount + 1, MaxReconnectAttempts);
+                    await Task.Delay(delay);
+                    await ConnectAndSubscribeWithRetry(attemptCount + 1);
+                }
+                else
+                {
+                    throw new Exception($"Failed to connect after {MaxReconnectAttempts} attempts", ex);
+                }
             }
         }
 
         public async Task ReceiveMessages()
         {
+            while (true)
+            {
+                try
+                {
+                    while (_config.WebSocket.State == WebSocketState.Open)
+                    {
+                        var result = await _config.WebSocket.ReceiveAsync(new ArraySegment<byte>(_buffer), CancellationToken.None);
+                        if (result.MessageType == WebSocketMessageType.Text)
+                        {
+                            var message = Encoding.UTF8.GetString(_buffer, 0, result.Count);
+                            await _config.MessageProcessor.ProcessReceivedMessage(message, _config.ProductId);
+                            
+                            // Parse the message to determine its type and publish to Kafka
+                            await PublishToKafka(message);
+                        }
+                        else if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            await _config.WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _config.Logger.LogError(ex, "Error receiving messages for {ProductId}", _config.ProductId);
+                }
+
+                _config.Logger.LogInformation("WebSocket connection closed. Attempting to reconnect...");
+                await ConnectAndSubscribeWithRetry();
+            }
+        }
+
+        private async Task PublishToKafka(string message)
+        {
             try
             {
-                while (_config.WebSocket.State == WebSocketState.Open)
+                var jsonDocument = JsonDocument.Parse(message);
+                if (jsonDocument.RootElement.TryGetProperty("channel", out var channelElement))
                 {
-                    var result = await _config.WebSocket.ReceiveAsync(new ArraySegment<byte>(_buffer), CancellationToken.None);
-                    if (result.MessageType == WebSocketMessageType.Text)
+                    string topic = channelElement.GetString() switch
                     {
-                        var message = Encoding.UTF8.GetString(_buffer, 0, result.Count);
-                        await _config.MessageProcessor.ProcessReceivedMessage(message, _config.ProductId);
-                    }
-                    else if (result.MessageType == WebSocketMessageType.Close)
+                        "candles" => "coinbase-candles",
+                        "heartbeats" => "coinbase-heartbeats",
+                        "ticker" => "coinbase-ticker",
+                        "level2" => "coinbase-level2",
+                        "user" => "coinbase-user",
+                        "market_trades" => "coinbase-market-trades",
+                        _ => "coinbase-unknown"
+                    };
+
+                    var kafkaMessage = new Message<string, string>
                     {
-                        await _config.WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
-                        break;
-                    }
+                        Key = _config.ProductId,
+                        Value = message
+                    };
+
+                    await _config.KafkaProducer.ProduceAsync(topic, kafkaMessage);
+                    _config.Logger.LogInformation("Published message to Kafka topic: {Topic}", topic);
+                }
+                else
+                {
+                    _config.Logger.LogWarning("Received message without a channel property: {Message}", message);
                 }
             }
             catch (Exception ex)
             {
-                _config.Logger.LogError(ex, "Error receiving messages for {ProductId}", _config.ProductId);
+                _config.Logger.LogError(ex, "Error publishing message to Kafka: {Message}", message);
             }
         }
 

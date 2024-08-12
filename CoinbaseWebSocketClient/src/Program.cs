@@ -6,6 +6,7 @@ using CoinbaseWebSocketClient.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using CoinbaseWebSocketClient.Interfaces;
+using DotNetEnv;
 
 namespace CoinbaseWebSocketClient
 {
@@ -13,6 +14,11 @@ namespace CoinbaseWebSocketClient
     {
         static async Task Main(string[] args)
         {
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            {
+                DotNetEnv.Env.Load();
+            }
+
             var services = new ServiceCollection();
             ConfigureServices(services);
 
@@ -41,7 +47,22 @@ namespace CoinbaseWebSocketClient
             services.AddTransient<IWebSocketClient, WebSocketClient>();
             services.AddSingleton<Func<IWebSocketClient>>(sp => () => sp.GetRequiredService<IWebSocketClient>());
 
-            services.AddSingleton(sp =>
+            services.AddSingleton<IKafkaProducer, KafkaProducer>();
+
+            services.AddSingleton<IWebSocketHandlerConfig>(sp =>
+            {
+                return new WebSocketHandlerConfig(
+                    sp.GetRequiredService<ILogger<WebSocketHandler>>(),
+                    sp.GetRequiredService<IMessageProcessor>(),
+                    sp.GetRequiredService<IConfig>(),
+                    sp.GetRequiredService<IJwtGenerator>(),
+                    sp.GetRequiredService<Func<IWebSocketClient>>()(),
+                    sp.GetRequiredService<IConfig>().ProductIds[0],
+                    sp.GetRequiredService<IKafkaProducer>()
+                );
+            });
+
+            services.AddSingleton<WebSocketManager>(sp =>
             {
                 var logger = sp.GetRequiredService<ILogger<WebSocketManager>>();
                 var messageProcessor = sp.GetRequiredService<IMessageProcessor>();
@@ -49,18 +70,18 @@ namespace CoinbaseWebSocketClient
                 var jwtGenerator = sp.GetRequiredService<IJwtGenerator>();
                 var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
                 var webSocketClientFactory = sp.GetRequiredService<Func<IWebSocketClient>>();
+                var kafkaProducer = sp.GetRequiredService<IKafkaProducer>();
 
-                return new WebSocketManagerConfig(
+                return new WebSocketManager(new WebSocketManagerConfig(
                     logger,
                     messageProcessor,
                     config,
                     jwtGenerator,
                     loggerFactory,
-                    webSocketClientFactory
-                );
+                    webSocketClientFactory,
+                    kafkaProducer
+                ));
             });
-
-            services.AddSingleton<WebSocketManager>();
         }
     }
 }

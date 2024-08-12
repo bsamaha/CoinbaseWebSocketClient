@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using CoinbaseWebSocketClient.Interfaces;
+using CoinbaseWebSocketClient.Configuration;
 
 namespace CoinbaseWebSocketClient.Services
 {
@@ -12,7 +13,8 @@ namespace CoinbaseWebSocketClient.Services
         IConfig Config,
         IJwtGenerator JwtGenerator,
         ILoggerFactory LoggerFactory,
-        Func<IWebSocketClient> WebSocketClientFactory
+        Func<IWebSocketClient> WebSocketClientFactory,
+        IKafkaProducer KafkaProducer
     );
 
     public class WebSocketManager
@@ -35,7 +37,8 @@ namespace CoinbaseWebSocketClient.Services
                     _config.Config,
                     _config.JwtGenerator,
                     _config.WebSocketClientFactory(),
-                    productId
+                    productId,
+                    _config.KafkaProducer
                 ));
                 _handlers[productId] = handler;
                 await handler.ConnectAndSubscribe();

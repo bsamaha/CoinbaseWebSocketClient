@@ -4,6 +4,7 @@ using System.Linq;
 using CoinbaseWebSocketClient.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
+using Confluent.Kafka;
 
 namespace CoinbaseWebSocketClient.Configuration
 {
@@ -23,6 +24,13 @@ namespace CoinbaseWebSocketClient.Configuration
         private List<string> _productIds = new List<string> { "BTC-USD", "ETH-USD" };
         private string _channel = Constants.Channels.Candles;
         private int _webSocketBufferSize = 32768;
+
+        public string KafkaBootstrapServers { get; set; } = "kafka-broker-0.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-1.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-2.kafka-broker-headless.kafka.svc.cluster.local:9092";
+        public string KafkaClientId { get; set; } = "coinbase-websocket-client";
+        public SecurityProtocol KafkaSecurityProtocol { get; set; } = SecurityProtocol.SaslPlaintext;
+        public SaslMechanism KafkaSaslMechanism { get; set; } = SaslMechanism.ScramSha256;
+        public string KafkaSaslUsername { get; set; } = "user1";
+        public string KafkaSaslPassword { get; set; } = "a93LhjbIFQ";
 
         public string ApiKey
         {
@@ -80,16 +88,23 @@ namespace CoinbaseWebSocketClient.Configuration
 
         private void LoadConfiguration()
         {
-            ApiKey = Environment.GetEnvironmentVariable("COINBASE_API_KEY") ?? ApiKey;
-            var privateKeyEnv = Environment.GetEnvironmentVariable("COINBASE_PRIVATE_KEY");
-            if (privateKeyEnv != null)
-            {
-                PrivateKey = privateKeyEnv.Replace("\\n", "\n");
-            }
+            ApiKey = Environment.GetEnvironmentVariable("COINBASE_API_KEY") ?? throw new InvalidOperationException("COINBASE_API_KEY is not set");
+            PrivateKey = Environment.GetEnvironmentVariable("COINBASE_PRIVATE_KEY")?.Replace("\\n", "\n") ?? throw new InvalidOperationException("COINBASE_PRIVATE_KEY is not set");
             WebSocketUrl = Environment.GetEnvironmentVariable("COINBASE_WEBSOCKET_URL") ?? WebSocketUrl;
             ProductIds = Environment.GetEnvironmentVariable("COINBASE_PRODUCT_IDS")?.Split(',').ToList() ?? ProductIds;
             Channel = Environment.GetEnvironmentVariable("COINBASE_CHANNEL") ?? Channel;
             WebSocketBufferSize = int.Parse(Environment.GetEnvironmentVariable("WEBSOCKET_BUFFER_SIZE") ?? WebSocketBufferSize.ToString());
+
+            KafkaBootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? throw new InvalidOperationException("KAFKA_BOOTSTRAP_SERVERS is not set");
+            KafkaClientId = Environment.GetEnvironmentVariable("KAFKA_CLIENT_ID") ?? throw new InvalidOperationException("KAFKA_CLIENT_ID is not set");
+            KafkaSecurityProtocol = Enum.TryParse<SecurityProtocol>(Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL"), true, out var securityProtocol) 
+                ? securityProtocol 
+                : throw new InvalidOperationException("Invalid KAFKA_SECURITY_PROTOCOL");
+            KafkaSaslMechanism = Enum.TryParse<SaslMechanism>(Environment.GetEnvironmentVariable("KAFKA_SASL_MECHANISM"), true, out var saslMechanism) 
+                ? saslMechanism 
+                : throw new InvalidOperationException("Invalid KAFKA_SASL_MECHANISM");
+            KafkaSaslUsername = Environment.GetEnvironmentVariable("KAFKA_SASL_USERNAME") ?? throw new InvalidOperationException("KAFKA_SASL_USERNAME is not set");
+            KafkaSaslPassword = Environment.GetEnvironmentVariable("KAFKA_SASL_PASSWORD") ?? throw new InvalidOperationException("KAFKA_SASL_PASSWORD is not set");
 
             LogConfiguration();
         }
@@ -102,6 +117,13 @@ namespace CoinbaseWebSocketClient.Configuration
             _logger.LogInformation($"WebSocket URL: {WebSocketUrl}");
             _logger.LogInformation($"Product IDs: {string.Join(", ", ProductIds)}");
             _logger.LogInformation($"Channel: {Channel}");
+
+            _logger.LogInformation($"Kafka Bootstrap Servers: {KafkaBootstrapServers}");
+            _logger.LogInformation($"Kafka Client ID: {KafkaClientId}");
+            _logger.LogInformation($"Kafka Security Protocol: {KafkaSecurityProtocol}");
+            _logger.LogInformation($"Kafka SASL Mechanism: {KafkaSaslMechanism}");
+            _logger.LogInformation($"Kafka SASL Username: {MaskString(KafkaSaslUsername)}");
+            _logger.LogInformation($"Kafka SASL Password: {MaskString(KafkaSaslPassword)}");
         }
 
         private string MaskString(string value)
