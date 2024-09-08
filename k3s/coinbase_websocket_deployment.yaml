@@ -24,6 +24,6 @@ spec:
         - name: COINBASE_WEBSOCKET_URL
           value: "wss://advanced-trade-ws.coinbase.com"
         - name: COINBASE_PRODUCT_IDS
-          value: "BTC-USD,ETH-USD"
+          value: "BTC-USD,ETH-USD,DOGE-USD,ZEC-USD,SOL-USD,AAVE-USD,LTC-USD,NEAR-USD,RNDR-USD,AVAX-USD"
         - name: COINBASE_CHANNEL
           value: "candles"

@@ -25,12 +25,12 @@ namespace CoinbaseWebSocketClient.Configuration
         private string _channel = Constants.Channels.Candles;
         private int _webSocketBufferSize = 32768;
 
-        public string KafkaBootstrapServers { get; set; } = "kafka-broker-0.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-1.kafka-broker-headless.kafka.svc.cluster.local:9092,kafka-broker-2.kafka-broker-headless.kafka.svc.cluster.local:9092";
-        public string KafkaClientId { get; set; } = "coinbase-websocket-client";
-        public SecurityProtocol KafkaSecurityProtocol { get; set; } = SecurityProtocol.SaslPlaintext;
-        public SaslMechanism KafkaSaslMechanism { get; set; } = SaslMechanism.ScramSha256;
-        public string KafkaSaslUsername { get; set; } = "user1";
-        public string KafkaSaslPassword { get; set; } = "a93LhjbIFQ";
+        public string KafkaBootstrapServers { get; set; }
+        public string KafkaClientId { get; set; }
+        public SecurityProtocol KafkaSecurityProtocol { get; set; }
+        public SaslMechanism KafkaSaslMechanism { get; set; }
+        public string KafkaSaslUsername { get; set; }
+        public string KafkaSaslPassword { get; set; }
 
         public string ApiKey
         {
