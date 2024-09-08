@@ -14,10 +14,8 @@ namespace CoinbaseWebSocketClient
     {
         static async Task Main(string[] args)
         {
-            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
-            {
-                DotNetEnv.Env.Load();
-            }
+            // Load environment variables from .env file
+            DotNetEnv.Env.Load();
 
             var services = new ServiceCollection();
             ConfigureServices(services);

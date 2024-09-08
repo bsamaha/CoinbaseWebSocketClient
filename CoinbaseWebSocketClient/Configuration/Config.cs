@@ -21,16 +21,52 @@ namespace CoinbaseWebSocketClient.Configuration
         private string _apiKey = "";
         private string _privateKey = "";
         private string _webSocketUrl = "wss://advanced-trade-ws.coinbase.com";
-        private List<string> _productIds = new List<string> { "BTC-USD", "ETH-USD" };
+        private List<string> _productIds = ["BTC-USD", "ETH-USD"];
         private string _channel = Constants.Channels.Candles;
         private int _webSocketBufferSize = 32768;
 
-        public string KafkaBootstrapServers { get; set; }
-        public string KafkaClientId { get; set; }
-        public SecurityProtocol KafkaSecurityProtocol { get; set; }
-        public SaslMechanism KafkaSaslMechanism { get; set; }
-        public string KafkaSaslUsername { get; set; }
-        public string KafkaSaslPassword { get; set; }
+        private string _kafkaBootstrapServers = "";
+        private string _kafkaClientId = "";
+        private SecurityProtocol _kafkaSecurityProtocol;
+        private SaslMechanism _kafkaSaslMechanism;
+        private string _kafkaSaslUsername = "";
+        private string _kafkaSaslPassword = "";
+
+        public string KafkaBootstrapServers
+        {
+            get => _kafkaBootstrapServers;
+            set => _kafkaBootstrapServers = !string.IsNullOrWhiteSpace(value) ? value : throw new ArgumentException("KafkaBootstrapServers cannot be null or empty");
+        }
+
+        public string KafkaClientId
+        {
+            get => _kafkaClientId;
+            set => _kafkaClientId = !string.IsNullOrWhiteSpace(value) ? value : throw new ArgumentException("KafkaClientId cannot be null or empty");
+        }
+
+        public SecurityProtocol KafkaSecurityProtocol
+        {
+            get => _kafkaSecurityProtocol;
+            set => _kafkaSecurityProtocol = value;
+        }
+
+        public SaslMechanism KafkaSaslMechanism
+        {
+            get => _kafkaSaslMechanism;
+            set => _kafkaSaslMechanism = value;
+        }
+
+        public string KafkaSaslUsername
+        {
+            get => _kafkaSaslUsername;
+            set => _kafkaSaslUsername = !string.IsNullOrWhiteSpace(value) ? value : throw new ArgumentException("KafkaSaslUsername cannot be null or empty");
+        }
+
+        public string KafkaSaslPassword
+        {
+            get => _kafkaSaslPassword;
+            set => _kafkaSaslPassword = !string.IsNullOrWhiteSpace(value) ? value : throw new ArgumentException("KafkaSaslPassword cannot be null or empty");
+        }
 
         public string ApiKey
         {
@@ -93,16 +129,16 @@ namespace CoinbaseWebSocketClient.Configuration
             WebSocketUrl = Environment.GetEnvironmentVariable("COINBASE_WEBSOCKET_URL") ?? WebSocketUrl;
             ProductIds = Environment.GetEnvironmentVariable("COINBASE_PRODUCT_IDS")?.Split(',').ToList() ?? ProductIds;
             Channel = Environment.GetEnvironmentVariable("COINBASE_CHANNEL") ?? Channel;
-            WebSocketBufferSize = int.Parse(Environment.GetEnvironmentVariable("WEBSOCKET_BUFFER_SIZE") ?? WebSocketBufferSize.ToString());
+            WebSocketBufferSize = int.TryParse(Environment.GetEnvironmentVariable("WEBSOCKET_BUFFER_SIZE"), out int bufferSize) ? bufferSize : WebSocketBufferSize;
 
-            KafkaBootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "kafka-broker-headless.default.svc.cluster.local:9092";
+            KafkaBootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? throw new InvalidOperationException("KAFKA_BOOTSTRAP_SERVERS is not set");
             KafkaClientId = Environment.GetEnvironmentVariable("KAFKA_CLIENT_ID") ?? throw new InvalidOperationException("KAFKA_CLIENT_ID is not set");
-            KafkaSecurityProtocol = Enum.TryParse<SecurityProtocol>(Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL"), true, out var securityProtocol) 
-                ? securityProtocol 
-                : throw new InvalidOperationException("Invalid KAFKA_SECURITY_PROTOCOL");
-            KafkaSaslMechanism = Enum.TryParse<SaslMechanism>(Environment.GetEnvironmentVariable("KAFKA_SASL_MECHANISM"), true, out var saslMechanism) 
-                ? saslMechanism 
-                : throw new InvalidOperationException("Invalid KAFKA_SASL_MECHANISM");
+            if (!Enum.TryParse<SecurityProtocol>(Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL"), true, out var securityProtocol))
+                throw new InvalidOperationException("KAFKA_SECURITY_PROTOCOL is not set or is invalid");
+            KafkaSecurityProtocol = securityProtocol;
+            if (!Enum.TryParse<SaslMechanism>(Environment.GetEnvironmentVariable("KAFKA_SASL_MECHANISM"), true, out var saslMechanism))
+                throw new InvalidOperationException("KAFKA_SASL_MECHANISM is not set or is invalid");
+            KafkaSaslMechanism = saslMechanism;
             KafkaSaslUsername = Environment.GetEnvironmentVariable("KAFKA_SASL_USERNAME") ?? throw new InvalidOperationException("KAFKA_SASL_USERNAME is not set");
             KafkaSaslPassword = Environment.GetEnvironmentVariable("KAFKA_SASL_PASSWORD") ?? throw new InvalidOperationException("KAFKA_SASL_PASSWORD is not set");
 
