@@ -21,4 +21,4 @@ COPY --from=build /app/publish .
 
 # Set the entry point
 ENTRYPOINT ["dotnet", "CoinbaseWebSocketClient.dll"]
-ENV VERSION=2.0.0
+ENV VERSION=3.0.0
