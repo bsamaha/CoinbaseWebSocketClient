@@ -95,7 +95,7 @@ namespace CoinbaseWebSocketClient.Configuration
             Channel = Environment.GetEnvironmentVariable("COINBASE_CHANNEL") ?? Channel;
             WebSocketBufferSize = int.Parse(Environment.GetEnvironmentVariable("WEBSOCKET_BUFFER_SIZE") ?? WebSocketBufferSize.ToString());
 
-            KafkaBootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? throw new InvalidOperationException("KAFKA_BOOTSTRAP_SERVERS is not set");
+            KafkaBootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "kafka-broker-headless.kafka.svc.cluster.local:9092";
             KafkaClientId = Environment.GetEnvironmentVariable("KAFKA_CLIENT_ID") ?? throw new InvalidOperationException("KAFKA_CLIENT_ID is not set");
             KafkaSecurityProtocol = Enum.TryParse<SecurityProtocol>(Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL"), true, out var securityProtocol) 
                 ? securityProtocol 

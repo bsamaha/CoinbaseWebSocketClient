@@ -27,3 +27,5 @@ spec:
           value: "BTC-USD,ETH-USD,DOGE-USD,ZEC-USD,SOL-USD,AAVE-USD,LTC-USD,NEAR-USD,RNDR-USD,AVAX-USD"
         - name: COINBASE_CHANNEL
           value: "candles"
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-broker-headless.kafka.svc.cluster.local:9092"
