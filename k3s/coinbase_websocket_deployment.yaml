@@ -28,4 +28,4 @@ spec:
         - name: COINBASE_CHANNEL
           value: "candles"
         - name: KAFKA_BOOTSTRAP_SERVERS
-          value: "kafka-broker-headless.kafka.svc.cluster.local:9092"
+          value: "kafka-broker-headless.default.svc.cluster.local:9092"
