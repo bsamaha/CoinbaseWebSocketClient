@@ -38,3 +38,9 @@ spec:
             secretKeyRef:
               name: kafka-user-passwords
               key: client-passwords
+        - name: KAFKA_CLIENT_ID
+          value: "coinbase-websocket-client"
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: "SaslPlaintext"
+        - name: KAFKA_SASL_MECHANISM
+          value: "ScramSha256"
