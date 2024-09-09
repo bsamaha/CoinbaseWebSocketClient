@@ -134,13 +134,21 @@ namespace CoinbaseWebSocketClient.Configuration
             KafkaBootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? throw new InvalidOperationException("KAFKA_BOOTSTRAP_SERVERS is not set");
             KafkaClientId = Environment.GetEnvironmentVariable("KAFKA_CLIENT_ID") ?? throw new InvalidOperationException("KAFKA_CLIENT_ID is not set");
             if (!Enum.TryParse<SecurityProtocol>(Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL"), true, out var securityProtocol))
+            {
+                _logger.LogError($"Failed to parse KAFKA_SECURITY_PROTOCOL: {Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL")}");
                 throw new InvalidOperationException("KAFKA_SECURITY_PROTOCOL is not set or is invalid");
+            }
             KafkaSecurityProtocol = securityProtocol;
             if (!Enum.TryParse<SaslMechanism>(Environment.GetEnvironmentVariable("KAFKA_SASL_MECHANISM"), true, out var saslMechanism))
                 throw new InvalidOperationException("KAFKA_SASL_MECHANISM is not set or is invalid");
             KafkaSaslMechanism = saslMechanism;
             KafkaSaslUsername = Environment.GetEnvironmentVariable("KAFKA_SASL_USERNAME") ?? throw new InvalidOperationException("KAFKA_SASL_USERNAME is not set");
             KafkaSaslPassword = Environment.GetEnvironmentVariable("KAFKA_SASL_PASSWORD") ?? throw new InvalidOperationException("KAFKA_SASL_PASSWORD is not set");
+
+            _logger.LogDebug($"KAFKA_SASL_MECHANISM: {Environment.GetEnvironmentVariable("KAFKA_SASL_MECHANISM")}");
+            _logger.LogDebug($"KAFKA_SECURITY_PROTOCOL: {Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL")}");
+            _logger.LogDebug($"KAFKA_SASL_USERNAME: {Environment.GetEnvironmentVariable("KAFKA_SASL_USERNAME")}");
+            _logger.LogDebug($"KAFKA_SASL_PASSWORD: {Environment.GetEnvironmentVariable("KAFKA_SASL_PASSWORD")}");
 
             LogConfiguration();
         }

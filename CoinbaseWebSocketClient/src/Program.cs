@@ -32,6 +32,18 @@ namespace CoinbaseWebSocketClient
             services.AddLogging(builder =>
             {
                 builder.AddConsole();
+                
+                // Get log level from environment variable
+                var logLevelString = Environment.GetEnvironmentVariable("LOG_LEVEL") ?? "Information";
+                if (Enum.TryParse<LogLevel>(logLevelString, out var logLevel))
+                {
+                    builder.SetMinimumLevel(logLevel);
+                }
+                else
+                {
+                    Console.WriteLine($"Invalid LOG_LEVEL: {logLevelString}. Defaulting to Information.");
+                    builder.SetMinimumLevel(LogLevel.Information);
+                }
             });
 
             services.AddSingleton<IConfig>(sp =>
